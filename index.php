@@ -1,7 +1,8 @@
 <?php
+// Démarrage de la session
 session_start();
 
-// 1) Chargement de la config et des contrôleurs
+// 1) Inclusion des fichiers de configuration et des contrôleurs
 require_once "controleur/config_bdd.php";
 require_once "controleur/controleurCategorie.class.php";
 require_once "controleur/controleurEvent.class.php";
@@ -10,30 +11,32 @@ require_once "controleur/controleurTypeService.class.php";
 require_once "controleur/controleurUser.class.php";
 
 // 2) Instanciation des contrôleurs
-$c_Categories   = new ControleurCategorie($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
-$c_Event        = new ControleurEvent($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
-$c_Service      = new ControleurService($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
-$c_TypeService  = new ControleurTypeService($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
-$c_User         = new ControleurUser($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
+$c_Categories  = new ControleurCategorie($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
+$c_Event       = new ControleurEvent($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
+$c_Service     = new ControleurService($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
+$c_TypeService = new ControleurTypeService($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
+$c_User        = new ControleurUser($serveur, $serveur2, $bdd, $user, $mdp, $mdp2);
 
-// 3) Déclenchement de la suppression s’il y a action=supprimerPro
+// 3) Gestion des actions globales (exemple : suppression d'un utilisateur)
 if (isset($_GET['action']) && $_GET['action'] === 'supprimerPro' && isset($_GET['iduser'])) {
     $c_User->supprimerProfessionnel((int)$_GET['iduser']);
-    // on redirige vers page 7 pour voir la liste après suppression
     header('Location: index.php?page=7');
     exit;
 }
 
-// 4) Détermination de la page à charger via page=...
-isset($_GET['page']) ? $page = $_GET['page'] : $page = 0;
+if (isset($_GET['action']) && $_GET['action'] === 'supprimerPart' && isset($_GET['iduser'])) {
+    $c_User->supprimerParticulier((int)$_GET['iduser']);
+    exit;
+}
+
+// 4) Détermination de la page à afficher (par défaut : page d'accueil)
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 0;
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeux Olympiques 2024</title>
     <link rel="icon" href="images/olympic.ico">
     <link href="styles.css" rel="stylesheet">
@@ -42,11 +45,15 @@ isset($_GET['page']) ? $page = $_GET['page'] : $page = 0;
 
 <body>
     <header>
-        <?php require_once "composants/navbar.php"; ?>
+        <?php
+        // Inclusion de la barre de navigation
+        require_once "composants/navbar.php";
+        ?>
     </header>
 
     <main>
         <?php
+        // Chargement de la page en fonction de la valeur de $page
         switch ($page) {
             case 0:
                 require_once "pages/home.php";
@@ -67,24 +74,49 @@ isset($_GET['page']) ? $page = $_GET['page'] : $page = 0;
                 require_once "pages/deconnexion.php";
                 break;
             case 6:
-                require_once "pages/profil.php";
+                require_once "pages/monprofil.php";
                 break;
             case 7:
-                // Liste des pros accessible seulement aux admins
                 if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-                    $c_User->voirProfessionnels();  // inclut maintenant vue_les_profilsPro.php
+                    $c_User->voirProfessionnels();
                 } else {
-                    echo "<p>Accès refusé</p>";
+                    echo "<p style='text-align:center;color:red'>Accès refusé</p>";
+                }
+                break;
+            case 8:
+                require_once "pages/mdp_oublie.php";
+                break;
+            case 9:
+                require_once "pages/mes_reservations.php";
+                break;
+            case 10:
+                require_once "pages/gestion_utilisateurs.php";
+                break;
+            case 11:
+                if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+                    $c_User->voirParticuliers();
+                } else {
+                    echo "<p style='text-align:center;color:red'>Accès refusé</p>";
+                }
+                break;
+            case 12:
+                if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+                    require_once "pages/rechercher_client.php";
+                } else {
+                    echo "<p style='text-align:center;color:red'>Accès refusé</p>";
                 }
                 break;
             default:
-                echo "<p>Page introuvable</p>";
+                echo "<p style='text-align:center;color:red'>Page introuvable</p>";
         }
         ?>
     </main>
 
     <footer>
-        <?php require_once "composants/footer.php"; ?>
+        <?php
+        // Inclusion du pied de page
+        require_once "composants/footer.php";
+        ?>
     </footer>
 
     <script src="js/script.js" defer></script>

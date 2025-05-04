@@ -110,4 +110,41 @@ class ModeleService
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($donnees);
     }
+
+    public function isReserved($iduser, $idservice)
+    {
+        $sql = "SELECT COUNT(*) FROM Louer WHERE iduser = :iduser AND idservice = :idservice";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser, ':idservice' => $idservice]);
+        return $stmt->fetchColumn() > 0;
+    }
+
+    public function getReservations($iduser)
+    {
+        $sql = "SELECT s.* FROM Louer l JOIN Service s ON l.idservice = s.idservice WHERE l.iduser = :iduser";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function reserverService($iduser, $idservice)
+    {
+        $sql = "INSERT INTO Louer (iduser, idservice, heureD, heureF) 
+                VALUES (:iduser, :idservice, NOW(), NULL)";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':iduser' => $iduser,
+            ':idservice' => $idservice
+        ]);
+    }
+
+    public function annulerReservation($iduser, $idservice)
+    {
+        $sql = "DELETE FROM Louer WHERE iduser = :iduser AND idservice = :idservice";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':iduser' => $iduser,
+            ':idservice' => $idservice
+        ]);
+    }
 }

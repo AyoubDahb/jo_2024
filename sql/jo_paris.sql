@@ -446,12 +446,12 @@ create view vueClientPart as (
 );
 
 #-----------------------------------------------------------------
-# Creation d_une vue de user Pro
+# Mise à jour de la vue de user Pro pour inclure le champ prenom
 #-----------------------------------------------------------------
 
 drop view if exists vueClientPro;
 create view vueClientPro as (
-	select u.iduser, u.nom, u.email, u.mdp, u.tel, u.role, c.num_Siret, c.adresse
-	from user u, Client_Pro c
-	where u.iduser = c.iduser
+	select u.iduser, u.nom, c.prenom, u.email, u.mdp, u.tel, u.role, c.num_Siret, c.adresse
+	from user u
+	left join Client_Pro c on u.iduser = c.iduser
 );

@@ -61,3 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['connexion'])) {
         </tr>
     </table>
 </form>
+<p style="text-align:center; margin-top:1em;">
+    <a href="index.php?page=8">Mot de passe oublié ?</a>
+</p>

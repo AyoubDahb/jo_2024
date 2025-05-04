@@ -87,4 +87,24 @@ class ControleurService
         header('Location: index.php?page=2');
         exit;
     }
+
+    public function isReserved($iduser, $idservice)
+    {
+        return $this->mod->isReserved($iduser, $idservice);
+    }
+
+    public function getReservations($iduser)
+    {
+        return $this->mod->getReservations($iduser);
+    }
+
+    public function reserverService($iduser, $idservice)
+    {
+        $this->mod->reserverService($iduser, $idservice);
+    }
+
+    public function annulerReservation($iduser, $idservice)
+    {
+        $this->mod->annulerReservation($iduser, $idservice);
+    }
 }

@@ -95,7 +95,41 @@ class ModeleEvent
             $insert->execute($donnees);
         }
     }
+
+    public function isReserved($iduser, $idevenement)
+    {
+        $sql = "SELECT COUNT(*) FROM Inscription WHERE iduser = :iduser AND idevenement = :idevenement";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser, ':idevenement' => $idevenement]);
+        return $stmt->fetchColumn() > 0;
+    }
+
+    public function getReservations($iduser)
+    {
+        $sql = "SELECT e.* FROM Inscription i JOIN Evenement e ON i.idevenement = e.idevenement WHERE i.iduser = :iduser";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function reserverEvenement($iduser, $idevenement)
+    {
+        $sql = "INSERT INTO Inscription (iduser, idevenement, dateD, commentaire, statut) 
+                VALUES (:iduser, :idevenement, NOW(), '', 'Réservé')";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':iduser' => $iduser,
+            ':idevenement' => $idevenement
+        ]);
+    }
+
+    public function annulerReservation($iduser, $idevenement)
+    {
+        $sql = "DELETE FROM Inscription WHERE iduser = :iduser AND idevenement = :idevenement";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':iduser' => $iduser,
+            ':idevenement' => $idevenement
+        ]);
+    }
 }
-
-
-?>

@@ -1,8 +1,8 @@
-
 <?php
 require_once("modele/modeleEvent.class.php");
 
-class ControleurEvent {
+class ControleurEvent
+{
 
     private $mod;
 
@@ -42,5 +42,24 @@ class ControleurEvent {
     {
         $this->mod->updateEvenement($tab);
     }
+
+    public function isReserved($iduser, $idevenement)
+    {
+        return $this->mod->isReserved($iduser, $idevenement);
+    }
+
+    public function getReservations($iduser)
+    {
+        return $this->mod->getReservations($iduser);
+    }
+
+    public function reserverEvenement($iduser, $idevenement)
+    {
+        $this->mod->reserverEvenement($iduser, $idevenement);
+    }
+
+    public function annulerReservation($iduser, $idevenement)
+    {
+        $this->mod->annulerReservation($iduser, $idevenement);
+    }
 }
-?>

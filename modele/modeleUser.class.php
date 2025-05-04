@@ -40,25 +40,27 @@ class ModeleUser
     // -----------------------------
     public function insertClientPro(array $tab)
     {
-        // Hash du mot de passe
+        // hash du mot de passe
         $tab['mdp'] = password_hash($tab['mdp'], PASSWORD_DEFAULT);
 
-        // Insertion dans user
-        $sql = "INSERT INTO user (nom, email, mdp, tel, role)
-                VALUES (:nom, :email, :mdp, :tel, 'clientPro')";
-        $this->pdo->prepare($sql)->execute([
-            ':nom'   => $tab['nom'],
-            ':email' => $tab['email'],
-            ':mdp'   => $tab['mdp'],
-            ':tel'   => $tab['tel'],
+        // appel de la proc stockée à 9 params
+        $stmt = $this->pdo->prepare("CALL insertClientPro(
+        :nom, :email, :mdp, :tel, :role,
+        :num_Siret, :adresse, :prenom, :code_postal
+    )");
+        $stmt->execute([
+            ':nom'         => $tab['nom'],
+            ':email'       => $tab['email'],
+            ':mdp'         => $tab['mdp'],
+            ':tel'         => $tab['tel'],
+            ':role'        => 'clientPro',
+            ':num_Siret'   => $tab['num_Siret'],
+            ':adresse'     => $tab['adresse'],
+            ':prenom'      => $tab['prenom'],
+            ':code_postal' => $tab['code_postal'],
         ]);
-
-        // Insertion dans Client_Pro
-        $id = $this->pdo->lastInsertId();
-        $this->pdo
-            ->prepare("INSERT INTO Client_Pro (iduser, num_Siret, adresse) VALUES (?, ?, ?)")
-            ->execute([$id, $tab['num_Siret'], $tab['adresse']]);
     }
+
 
     // -----------------------------
     // Vérification de la connexion
@@ -138,6 +140,36 @@ class ModeleUser
             ->execute([$iduser]);
     }
 
+    // -----------------------------
+    // Récupération de tous les particuliers
+    // -----------------------------
+    public function getAllPartUsers()
+    {
+        $stmt = $this->pdo->prepare("SELECT * FROM vueClientPart");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // -----------------------------
+    // Suppression particulier + inscriptions
+    // -----------------------------
+    public function supprimerPartEtInscriptions(int $iduser): void
+    {
+        // 1) Supprimer les commentaires
+        $this->pdo
+            ->prepare("DELETE FROM Commenter WHERE iduser = ?")
+            ->execute([$iduser]);
+
+        // 2) Supprimer les inscriptions
+        $this->pdo
+            ->prepare("DELETE FROM Inscription WHERE iduser = ?")
+            ->execute([$iduser]);
+
+        // 3) Appeler la procédure pour supprimer Client_Particulier et user
+        $this->pdo
+            ->prepare("CALL deleteClientPar(?)")
+            ->execute([$iduser]);
+    }
 
     // -----------------------------
     // Autres sélections (vues)
@@ -168,8 +200,28 @@ class ModeleUser
     // -----------------------------
     public function findByRole($role, $iduser)
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM user WHERE role = ? AND iduser = ?");
-        $stmt->execute([$role, $iduser]);
+        if ($role === 'clientPro') {
+            $sql = "SELECT u.*, cp.num_Siret, cp.adresse, cp.prenom 
+                    FROM user u 
+                    LEFT JOIN Client_Pro cp ON u.iduser = cp.iduser 
+                    WHERE u.iduser = ? AND u.role = 'clientPro'";
+        } elseif ($role === 'clientPart') {
+            $sql = "SELECT u.*, cp.prenom 
+                    FROM user u 
+                    LEFT JOIN Client_Particulier cp ON u.iduser = cp.iduser 
+                    WHERE u.iduser = ? AND u.role = 'clientPart'";
+        } else {
+            $sql = "SELECT * FROM user WHERE role = ? AND iduser = ?";
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+
+        if ($role === 'clientPro' || $role === 'clientPart') {
+            $stmt->execute([$iduser]);
+        } else {
+            $stmt->execute([$role, $iduser]);
+        }
+
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -187,5 +239,122 @@ class ModeleUser
         $stmt = $this->pdo->prepare("SELECT * FROM vueClientPro WHERE email = ?");
         $stmt->execute([$email]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // -----------------------------
+    // Récupération de tous les utilisateurs
+    // -----------------------------
+    public function getAllUsers()
+    {
+        $sql = "SELECT DISTINCT user.iduser, user.nom, user.email, user.tel, user.role, 
+                   Client_Particulier.prenom, Client_Pro.num_Siret, Client_Pro.adresse
+            FROM user 
+            LEFT JOIN Client_Particulier ON user.iduser = Client_Particulier.iduser
+            LEFT JOIN Client_Pro ON user.iduser = Client_Pro.iduser
+            WHERE user.role != 'admin'"; // Exclure les administrateurs
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute();
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Supprime les doublons basés sur l'iduser
+        $uniqueUsers = [];
+        foreach ($users as $user) {
+            $uniqueUsers[$user['iduser']] = $user;
+        }
+
+        return array_values($uniqueUsers);
+    }
+
+    // -----------------------------
+    // Mise à jour des informations d'un utilisateur
+    // -----------------------------
+    public function updateUser(array $data)
+    {
+        $iduser = $data['iduser'] ?? null;
+        if (!$iduser) {
+            throw new \Exception("L'ID utilisateur est obligatoire pour la mise à jour.");
+        }
+
+        // Mise à jour des champs de la table `user`
+        $sql = "UPDATE user SET 
+                    nom = :nom, 
+                    email = :email, 
+                    tel = :tel 
+                WHERE iduser = :iduser";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':nom' => $data['nom'],
+            ':email' => $data['email'],
+            ':tel' => $data['tel'],
+            ':iduser' => $iduser
+        ]);
+
+        // Mise à jour des champs spécifiques selon le rôle
+        $role = $data['role'] ?? null;
+        if ($role === 'clientPart') {
+            $sql = "UPDATE Client_Particulier SET 
+                        prenom = :prenom 
+                    WHERE iduser = :iduser";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                ':prenom' => $data['prenom'] ?? null,
+                ':iduser' => $iduser
+            ]);
+        } elseif ($role === 'clientPro') {
+            $sql = "UPDATE Client_Pro SET 
+                        prenom = :prenom,
+                        num_Siret = :num_Siret, 
+                        adresse = :adresse 
+                    WHERE iduser = :iduser";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                ':prenom' => $data['prenom'] ?? null,
+                ':num_Siret' => $data['num_Siret'] ?? null,
+                ':adresse' => $data['adresse'] ?? null,
+                ':iduser' => $iduser
+            ]);
+        }
+    }
+
+    // Compte le nombre de réservations validées pour un utilisateur
+    public function countValidatedReservations($iduser)
+    {
+        $sql = "SELECT COUNT(*) AS total 
+                FROM Inscription 
+                WHERE iduser = :iduser AND statut = 'Réservé'";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchColumn();
+    }
+
+    public function countEventReservations($iduser)
+    {
+        $sql = "SELECT COUNT(*) AS total 
+                FROM Inscription 
+                WHERE iduser = :iduser AND statut = 'Réservé'";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchColumn();
+    }
+
+    public function countServiceReservations($iduser)
+    {
+        $sql = "SELECT COUNT(*) AS total 
+                FROM Louer 
+                WHERE iduser = :iduser";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchColumn();
+    }
+
+    public function calculateServiceReservationAmount($iduser)
+    {
+        $sql = "SELECT SUM(s.prix) AS total 
+                FROM Louer l
+                JOIN Service s ON l.idservice = s.idservice
+                WHERE l.iduser = :iduser";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':iduser' => $iduser]);
+        return $stmt->fetchColumn() ?: 0;
     }
 }

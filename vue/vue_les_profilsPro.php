@@ -15,12 +15,12 @@
 
     <?php foreach ($listePros as $unClientPro): ?>
         <tr>
-            <td><?= $unClientPro["nom"] ?></td>
-            <td><?= $unClientPro["email"] ?></td>
+            <td><?= htmlspecialchars($unClientPro["nom"]) ?></td>
+            <td><?= htmlspecialchars($unClientPro["email"]) ?></td>
             <td>••••••••</td> <!-- On masque le hash du mot de passe -->
-            <td><?= $unClientPro["tel"] ?></td>
-            <td><?= $unClientPro["num_Siret"] ?></td>
-            <td><?= $unClientPro["adresse"] ?></td>
+            <td><?= htmlspecialchars($unClientPro["tel"]) ?></td>
+            <td><?= htmlspecialchars($unClientPro["num_Siret"] ?? '') ?></td>
+            <td><?= htmlspecialchars($unClientPro["adresse"] ?? '') ?></td>
 
             <?php if (isset($_SESSION["role"]) && $_SESSION["role"] === "admin"): ?>
                 <td>
@@ -33,3 +33,4 @@
         </tr>
     <?php endforeach; ?>
 </table>
+</main>
